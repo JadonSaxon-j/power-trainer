@@ -4,10 +4,18 @@
 // ============================================================
 
 const PAL = {
-  maroon: "#6B1E2B", maroonDark:"#46141C", gold:"#B8892B",
-  green:"#3F7856", greenGlow:"#57A87A", red:"#A23B2E",
-  idle:"#A7A08F", ink:"#241D19", paper:"#F3EFE4"
+  maroon: "#E0954F", maroonDark:"#0E1A2E", gold:"#E0A93D",
+  green:"#34D399", greenGlow:"#5EF0BB", red:"#F0605A",
+  idle:"#35496B", ink:"#DCE6F5", paper:"#101E33", cyan:"#4FD1C5", cyanGlow:"#7FEAE0"
 };
+
+// Brief "snap" pulse feedback when a component is toggled — call right after re-drawing
+function snapPulse(el) {
+  if (!el) return;
+  el.classList.remove("snap-anim");
+  void el.offsetWidth; // restart animation
+  el.classList.add("snap-anim");
+}
 
 function svgEl(tag, attrs, parent) {
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -57,7 +65,7 @@ SIM_RENDERERS["voltage-levels"] = function(container) {
       svgEl("polygon", { points:`${x-8},${y+boxH/2-6} ${x},${y+boxH/2} ${x-8},${y+boxH/2+6}`, fill:PAL.idle }, svg);
     }
     const g = svgEl("g", { class:"node-btn", tabindex:"0", role:"button" }, svg);
-    const rect = svgEl("rect", { x, y, width:boxW, height:boxH, rx:4, fill:"#fff", stroke:PAL.maroon, "stroke-width":2, class:"node-shape" }, g);
+    const rect = svgEl("rect", { x, y, width:boxW, height:boxH, rx:4, fill:PAL.paper, stroke:PAL.maroon, "stroke-width":2, class:"node-shape" }, g);
     svgEl("text", { x:x+boxW/2, y:y+30, class:"node-label", "font-weight":"600" }, g).textContent = s.name;
     svgEl("text", { x:x+boxW/2, y:y+55, class:"node-sub", fill:PAL.gold }, g).textContent = s.v;
     g.style.cursor = "pointer";
@@ -73,6 +81,7 @@ SIM_RENDERERS["voltage-levels"] = function(container) {
 // ---------------------------------------------------------------
 SIM_RENDERERS["sld"] = function(container) {
   const state = { main:true, brA:true, brB:true };
+  let lastToggled = null;
 
   function draw() {
     container.querySelector("svg")?.remove();
@@ -83,27 +92,28 @@ SIM_RENDERERS["sld"] = function(container) {
     const bEnergized = mainEnergized && state.brB;
 
     function wire(x1,y1,x2,y2,on) {
-      svgEl("line", { x1,y1,x2,y2, stroke: on ? PAL.greenGlow : PAL.idle, "stroke-width": on ? 4:3 }, svg);
+      svgEl("line", { x1,y1,x2,y2, stroke: on ? PAL.greenGlow : PAL.idle, "stroke-width": on ? 4:3, style: on ? "filter:drop-shadow(0 0 3px "+PAL.greenGlow+")":"" }, svg);
     }
     function breaker(x,y,id,on,label) {
       const g = svgEl("g", { class:"node-btn" }, svg);
-      svgEl("rect", { x:x-14, y:y-14, width:28, height:28, fill: on ? "#fff":"#eee", stroke:PAL.maroon, "stroke-width":2.5 }, g);
+      svgEl("rect", { x:x-14, y:y-14, width:28, height:28, fill: on ? PAL.paper : "#0a1220", stroke:PAL.maroon, "stroke-width":2.5 }, g);
       svgEl("line", { x1:x-14,y1: on? y+14 : y-14, x2:x+14, y2: on? y-14 : y+14, stroke:PAL.maroon, "stroke-width":2.5 }, g);
       svgEl("text", { x, y:y+34, class:"node-sub" }, g).textContent = label + (on ? " (CLOSED)" : " (OPEN)");
       g.style.cursor = "pointer";
-      g.addEventListener("click", () => { state[id] = !state[id]; draw(); infoTag(container, `${label} ${state[id] ? "closed — current can flow through it" : "opened — this breaker now blocks current downstream"}.`); });
+      if (lastToggled === id) { g.classList.add("snap-anim"); lastToggled = null; }
+      g.addEventListener("click", () => { state[id] = !state[id]; lastToggled = id; draw(); infoTag(container, `${label} ${state[id] ? "closed — current can flow through it" : "opened — this breaker now blocks current downstream"}.`); });
     }
     function xfmr(x,y,on){
       svgEl("circle",{cx:x-8,cy:y,r:14,fill:"none",stroke: on?PAL.green:PAL.idle,"stroke-width":2.5},svg);
       svgEl("circle",{cx:x+8,cy:y,r:14,fill:"none",stroke: on?PAL.green:PAL.idle,"stroke-width":2.5},svg);
     }
     function load(x,y,on,label){
-      svgEl("polygon",{points:`${x-10},${y-14} ${x+10},${y-14} ${x},${y+10}`, fill: on?PAL.gold:"#ddd", stroke:PAL.ink,"stroke-width":1},svg);
+      svgEl("polygon",{points:`${x-10},${y-14} ${x+10},${y-14} ${x},${y+10}`, fill: on?PAL.gold:PAL.idle, stroke:PAL.ink,"stroke-width":1},svg);
       svgEl("text",{x, y:y+30, class:"node-sub"},svg).textContent = label;
     }
 
     // Source
-    svgEl("rect",{x:20,y:140,width:60,height:40, fill:"#fff", stroke:PAL.ink,"stroke-width":2},svg);
+    svgEl("rect",{x:20,y:140,width:60,height:40, fill:PAL.paper, stroke:PAL.ink,"stroke-width":2},svg);
     svgEl("text",{x:50,y:165,class:"node-sub"},svg).textContent="SOURCE";
     wire(80,160,150,160,mainEnergized);
     breaker(170,160,"main",state.main,"CB-Main (52M)");
@@ -137,11 +147,13 @@ SIM_RENDERERS["sld"] = function(container) {
 // ---------------------------------------------------------------
 SIM_RENDERERS["transformers"] = function(container) {
   const state = { mode:"wye", lineV:12470 };
+  let first = true;
 
   function draw() {
     container.querySelector(".xfmr-wrap")?.remove();
     const wrap = document.createElement("div");
-    wrap.className = "xfmr-wrap";
+    wrap.className = "xfmr-wrap" + (first ? "" : " snap-anim");
+    first = false;
 
     const controls = document.createElement("div");
     controls.className = "sim-controls";
@@ -223,9 +235,10 @@ SIM_RENDERERS["substations"] = function(container) {
     { id:"bah", label:"Breaker-and-a-Half" }
   ];
 
+  let subFirst = true;
   function draw() {
     container.querySelector(".sub-wrap")?.remove();
-    const wrap = document.createElement("div"); wrap.className = "sub-wrap";
+    const wrap = document.createElement("div"); wrap.className = "sub-wrap" + (subFirst ? "" : " snap-anim"); subFirst = false;
     const controls = document.createElement("div"); controls.className = "sim-controls";
     types.forEach(t => {
       const b = document.createElement("button");
@@ -246,7 +259,7 @@ SIM_RENDERERS["substations"] = function(container) {
       svgEl("text",{x:350,y:80,class:"node-sub"},svg).textContent="Single Bus";
       [180,350,520].forEach((x,i)=>{
         svgEl("line",{x1:x,y1:100,x2:x,y2:170,stroke:state.tripped?PAL.idle:PAL.greenGlow,"stroke-width":3},svg);
-        svgEl("rect",{x:x-10,y:170,width:20,height:20,fill:"#fff",stroke:PAL.maroon,"stroke-width":2},svg);
+        svgEl("rect",{x:x-10,y:170,width:20,height:20,fill:PAL.paper,stroke:PAL.maroon,"stroke-width":2},svg);
         svgEl("text",{x,y:210,class:"node-sub"},svg).textContent="Ckt "+(i+1);
       });
       infoTag(container, state.tripped ? "One bus fault/outage = ENTIRE bus and all circuits go dark. This is the reliability tradeoff of a single bus." : "All circuits share one bus — click 'Trip a breaker' to see what a bus fault does here.");
@@ -259,7 +272,7 @@ SIM_RENDERERS["substations"] = function(container) {
         svgEl("line",{x1:p1[0],y1:p1[1],x2:p2[0],y2:p2[1],stroke:isTripped?PAL.idle:PAL.greenGlow,"stroke-width":4},svg);
       }
       pts.forEach((p,i)=>{
-        svgEl("rect",{x:p[0]-10,y:p[1]-10,width:20,height:20,fill:"#fff",stroke:PAL.maroon,"stroke-width":2},svg);
+        svgEl("rect",{x:p[0]-10,y:p[1]-10,width:20,height:20,fill:PAL.paper,stroke:PAL.maroon,"stroke-width":2},svg);
         svgEl("text",{x:p[0],y:p[1]-18,class:"node-sub"},svg).textContent="CB"+(i+1);
         svgEl("line",{x1:p[0],y1:p[1],x2:p[0]+(p[0]>cx?40:-40),y2:p[1],stroke:PAL.green,"stroke-width":3},svg);
         svgEl("text",{x:p[0]+(p[0]>cx?60:-60),y:p[1]+4,class:"node-sub"},svg).textContent="Ckt"+(i+1);
@@ -273,7 +286,7 @@ SIM_RENDERERS["substations"] = function(container) {
       [200,350,500].forEach((x,i)=>{
         const isTripped = state.tripped && i===1;
         svgEl("line",{x1:x,y1:y1,x2:x,y2:y2,stroke:isTripped?PAL.idle:PAL.greenGlow,"stroke-width":3},svg);
-        svgEl("rect",{x:x-10,y:(y1+y2)/2-10,width:20,height:20,fill:"#fff",stroke:PAL.maroon,"stroke-width":2},svg);
+        svgEl("rect",{x:x-10,y:(y1+y2)/2-10,width:20,height:20,fill:PAL.paper,stroke:PAL.maroon,"stroke-width":2},svg);
       });
       svgEl("line",{x1:200,y1:(y1+y2)/2,x2:80,y2:(y1+y2)/2-30,stroke:PAL.green,"stroke-width":3},svg);
       svgEl("text",{x:60,y:(y1+y2)/2-40,class:"node-sub"},svg).textContent="Ckt 1";
@@ -303,9 +316,10 @@ SIM_RENDERERS["grounding"] = function(container) {
     ungrounded: "Very little current flows — the system may not even trip on this first fault. Sounds convenient, but the fault is now hard to detect, and a SECOND fault on another phase becomes a dangerous phase-to-phase event."
   };
 
+  let gndFirst = true;
   function draw() {
     container.querySelector(".gnd-wrap")?.remove();
-    const wrap = document.createElement("div"); wrap.className = "gnd-wrap";
+    const wrap = document.createElement("div"); wrap.className = "gnd-wrap" + (gndFirst ? "" : " snap-anim"); gndFirst = false;
     const controls = document.createElement("div"); controls.className = "sim-controls";
     types.forEach(t => {
       const b = document.createElement("button");
@@ -321,10 +335,10 @@ SIM_RENDERERS["grounding"] = function(container) {
     wrap.appendChild(controls);
 
     const svg = newSVG(500, 220);
-    svgEl("rect",{x:200,y:30,width:100,height:60,fill:"#fff",stroke:PAL.ink,"stroke-width":2},svg);
+    svgEl("rect",{x:200,y:30,width:100,height:60,fill:PAL.paper,stroke:PAL.ink,"stroke-width":2},svg);
     svgEl("text",{x:250,y:65,class:"node-sub"},svg).textContent="Xfmr Neutral";
     if (state.type === "resistance") {
-      svgEl("rect",{x:235,y:100,width:30,height:20,fill:"#fff",stroke:PAL.gold,"stroke-width":2},svg);
+      svgEl("rect",{x:235,y:100,width:30,height:20,fill:PAL.paper,stroke:PAL.gold,"stroke-width":2},svg);
       svgEl("text",{x:250,y:135,class:"node-sub"},svg).textContent="Resistor";
     }
     if (state.type !== "ungrounded") {
@@ -386,11 +400,11 @@ SIM_RENDERERS["relays"] = function(container) {
     svgEl("text",{x:200,y:100,class:"node-sub"},svg).textContent="CT";
     // breaker
     const bx=380;
-    svgEl("rect",{x:bx-14,y:46,width:28,height:28,fill:"#fff",stroke:PAL.maroon,"stroke-width":2.5},svg);
+    svgEl("rect",{x:bx-14,y:46,width:28,height:28,fill:PAL.paper,stroke:PAL.maroon,"stroke-width":2.5},svg);
     svgEl("line",{x1:bx-14,y1: state.tripped? 74:46, x2:bx+14, y2: state.tripped? 46:74, stroke:PAL.maroon,"stroke-width":2.5},svg);
     svgEl("text",{x:bx,y:100,class:"node-sub"},svg).textContent = state.tripped ? "Breaker (OPEN)" : "Breaker (closed)";
     // relay
-    svgEl("rect",{x:170,y:130,width:70,height:44,fill:"#fff",stroke:PAL.gold,"stroke-width":2.5},svg);
+    svgEl("rect",{x:170,y:130,width:70,height:44,fill:PAL.paper,stroke:PAL.gold,"stroke-width":2.5},svg);
     svgEl("text",{x:205,y:156,class:"node-sub"},svg).textContent="Relay (51)";
     svgEl("line",{x1:200,y1:76,x2:205,y2:130, stroke: state.fault?PAL.red:PAL.idle, "stroke-width":2, "stroke-dasharray":"4 3"},svg);
     svgEl("line",{x1:240,y1:150,x2:bx,y2:150, stroke: state.tripped?PAL.red:PAL.idle, "stroke-width":2, "stroke-dasharray":"4 3"},svg);
@@ -427,9 +441,10 @@ SIM_RENDERERS["power-quality"] = function(container) {
     swell: "A brief rise in voltage magnitude — often from a large load dropping off, or a ground fault on an ungrounded system."
   };
 
+  let pqFirst = true;
   function draw() {
     container.querySelector(".pq-wrap")?.remove();
-    const wrap = document.createElement("div"); wrap.className="pq-wrap";
+    const wrap = document.createElement("div"); wrap.className="pq-wrap" + (pqFirst ? "" : " snap-anim"); pqFirst = false;
     const controls = document.createElement("div"); controls.className="sim-controls";
     modes.forEach(m => {
       const b = document.createElement("button");
@@ -442,7 +457,7 @@ SIM_RENDERERS["power-quality"] = function(container) {
 
     const w=640,h=200, mid=h/2;
     const svg = newSVG(w,h);
-    svgEl("line",{x1:0,y1:mid,x2:w,y2:mid,stroke:"#ccc","stroke-width":1},svg);
+    svgEl("line",{x1:0,y1:mid,x2:w,y2:mid,stroke:PAL.idle,"stroke-width":1},svg);
     let d = "M0,"+mid;
     for (let x=0; x<=w; x+=3) {
       const t = x/w * 4 * Math.PI;
@@ -454,7 +469,8 @@ SIM_RENDERERS["power-quality"] = function(container) {
       else { const inSwell = x > w*0.35 && x < w*0.65; y = mid - amp*(inSwell?1.5:1)*Math.sin(t); }
       d += ` L${x},${y}`;
     }
-    svgEl("path",{d, fill:"none", stroke:PAL.maroon, "stroke-width":2.5},svg);
+    const waveColor = state.mode === "clean" ? PAL.cyanGlow : state.mode === "harmonic" ? PAL.gold : state.mode === "sag" ? PAL.idle : PAL.red;
+    svgEl("path",{d, fill:"none", stroke:waveColor, "stroke-width":2.5, style:`filter:drop-shadow(0 0 4px ${waveColor})`},svg);
     wrap.appendChild(svg);
     container.insertBefore(wrap, container.firstChild);
   }
@@ -467,14 +483,15 @@ SIM_RENDERERS["power-quality"] = function(container) {
 // ---------------------------------------------------------------
 SIM_RENDERERS["scada"] = function(container) {
   const state = { closed:true, mw: 42.6 };
+  let scadaFirst = true;
 
   function draw() {
     container.querySelector(".scada-wrap")?.remove();
-    const wrap = document.createElement("div"); wrap.className="scada-wrap";
+    const wrap = document.createElement("div"); wrap.className="scada-wrap" + (scadaFirst ? "" : " snap-anim"); scadaFirst = false;
 
     const svg = newSVG(500,150);
     svgEl("line",{x1:20,y1:70,x2:220,y2:70, stroke: state.closed?PAL.greenGlow:PAL.idle,"stroke-width":4},svg);
-    svgEl("rect",{x:206,y:56,width:28,height:28,fill:"#fff",stroke:PAL.maroon,"stroke-width":2.5},svg);
+    svgEl("rect",{x:206,y:56,width:28,height:28,fill:PAL.paper,stroke:PAL.maroon,"stroke-width":2.5},svg);
     svgEl("line",{x1:206,y1: state.closed?84:56, x2:234, y2: state.closed?56:84, stroke:PAL.maroon,"stroke-width":2.5},svg);
     svgEl("line",{x1:248,y1:70,x2:420,y2:70, stroke: state.closed?PAL.greenGlow:PAL.idle,"stroke-width":4},svg);
     svgEl("text",{x:220,y:110,class:"node-sub"},svg).textContent="Substation Breaker CB-7";
