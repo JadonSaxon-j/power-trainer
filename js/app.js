@@ -80,16 +80,17 @@ function drawNodeSymbol(g, type, cx, cy, color) {
     g.appendChild(e);
     return e;
   }
-  el("rect", { class:"node-shape", x:cx-30, y:cy-22, width:60, height:44, rx:4, fill:"#101E33", stroke:color, "stroke-width":2.5 });
+  el("rect", { class:"node-shape", x:cx-34, y:cy-26, width:68, height:52, rx:8, fill:"rgba(16,30,51,0.85)", stroke:color, "stroke-width":2.5 });
+  el("rect", { x:cx-34, y:cy-26, width:68, height:52, rx:8, fill:"none", stroke:color, "stroke-width":1, opacity:0.25 });
   const symbols = {
-    breaker: () => { el("rect",{x:cx-9,y:cy-9,width:18,height:18,fill:"none",stroke:color,"stroke-width":2.5}); },
-    transformer: () => { el("circle",{cx:cx-6,cy:cy,r:9,fill:"none",stroke:color,"stroke-width":2}); el("circle",{cx:cx+6,cy:cy,r:9,fill:"none",stroke:color,"stroke-width":2}); },
-    bus: () => { el("line",{x1:cx-16,y1:cy,x2:cx+16,y2:cy,stroke:color,"stroke-width":5}); },
-    disconnect: () => { el("line",{x1:cx-12,y1:cy+8,x2:cx+12,y2:cy-8,stroke:color,"stroke-width":3}); el("circle",{cx:cx-12,cy:cy+8,r:3,fill:color}); el("circle",{cx:cx+12,cy:cy-8,r:3,fill:color}); },
-    ground: () => { [16,10,4].forEach((w,i)=>el("line",{x1:cx-w,y1:cy-6+i*7,x2:cx+w,y2:cy-6+i*7,stroke:color,"stroke-width":2})); },
-    relay: () => { el("circle",{cx,cy,r:12,fill:"none",stroke:color,"stroke-width":2}); el("text",{x:cx,y:cy+4,"text-anchor":"middle","font-size":"9","font-family":"IBM Plex Mono",fill:color}).textContent="51"; },
-    wave: () => { el("path",{d:`M${cx-16},${cy} q4,-12 8,0 t8,0 t8,0`, fill:"none", stroke:color,"stroke-width":2}); },
-    scada: () => { el("rect",{x:cx-12,y:cy-9,width:24,height:16,fill:"none",stroke:color,"stroke-width":2}); el("line",{x1:cx-6,y1:cy+7,x2:cx+6,y2:cy+7,stroke:color,"stroke-width":2}); }
+    breaker: () => { el("rect",{x:cx-10,y:cy-10,width:20,height:20,fill:"none",stroke:color,"stroke-width":2.5}); },
+    transformer: () => { el("circle",{cx:cx-7,cy:cy,r:10,fill:"none",stroke:color,"stroke-width":2.2}); el("circle",{cx:cx+7,cy:cy,r:10,fill:"none",stroke:color,"stroke-width":2.2}); },
+    bus: () => { el("line",{x1:cx-18,y1:cy,x2:cx+18,y2:cy,stroke:color,"stroke-width":5}); el("circle",{cx:cx-18,cy:cy,r:2.5,fill:color}); el("circle",{cx:cx+18,cy:cy,r:2.5,fill:color}); },
+    disconnect: () => { el("line",{x1:cx-13,y1:cy+9,x2:cx+13,y2:cy-9,stroke:color,"stroke-width":3}); el("circle",{cx:cx-13,cy:cy+9,r:3,fill:color}); el("circle",{cx:cx+13,cy:cy-9,r:3,fill:color}); },
+    ground: () => { [17,11,5].forEach((w,i)=>el("line",{x1:cx-w,y1:cy-7+i*7,x2:cx+w,y2:cy-7+i*7,stroke:color,"stroke-width":2.2})); },
+    relay: () => { el("circle",{cx,cy,r:13,fill:"none",stroke:color,"stroke-width":2.2}); el("text",{x:cx,y:cy+4,"text-anchor":"middle","font-size":"10","font-family":"IBM Plex Mono","font-weight":"600",fill:color}).textContent="51"; },
+    wave: () => { el("path",{d:`M${cx-17},${cy} q4.5,-13 9,0 t9,0 t9,0`, fill:"none", stroke:color,"stroke-width":2.2}); },
+    scada: () => { el("rect",{x:cx-13,y:cy-10,width:26,height:17,rx:1,fill:"none",stroke:color,"stroke-width":2.2}); el("line",{x1:cx-7,y1:cy+8,x2:cx+7,y2:cy+8,stroke:color,"stroke-width":2.2}); el("circle",{cx:cx-7,cy:cy-4,r:1.6,fill:color}); }
   };
   (symbols[type] || symbols.bus)();
 }
@@ -112,35 +113,42 @@ function renderMenu() {
 
     const wrap = document.createElement("div");
     wrap.className = "oneline-wrap";
-    const cols = 3, colW = 320, rowH = 150, svgW = cols*colW, svgH = Math.ceil(TOPICS.length/cols)*rowH + 40;
+    const cols = 3, colW = 320, rowH = 172, svgW = cols*colW, svgH = Math.ceil(TOPICS.length/cols)*rowH + 46;
     const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
     svg.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
-    svg.setAttribute("width","100%"); svg.setAttribute("height", Math.min(svgH,560));
+    svg.setAttribute("width","100%"); svg.setAttribute("height", Math.min(svgH,620));
 
     const busY = 30;
     const S = "http://www.w3.org/2000/svg";
     function el(tag, attrs, parent) { const e = document.createElementNS(S,tag); for (const k in attrs) e.setAttribute(k,attrs[k]); (parent||svg).appendChild(e); return e; }
-    el("line", { x1:20, y1:busY, x2:svgW-20, y2:busY, stroke:"#E0A93D", "stroke-width":5, style:"filter:drop-shadow(0 0 4px #E0A93D)" });
-    el("text", { x:20, y:busY-10, class:"node-sub", "font-weight":"600" }).textContent = "MAIN BUS — 9 TRAINING MODULES";
+    el("line", { x1:20, y1:busY, x2:svgW-20, y2:busY, stroke:"#E7B34A", "stroke-width":5, class:"energized-flow", style:"filter:drop-shadow(0 0 6px #E7B34A)" });
+    el("text", { x:20, y:busY-12, class:"node-sub", "font-weight":"600" }).textContent = "MAIN BUS — 9 TRAINING MODULES";
 
     TOPICS.forEach((t, i) => {
       const col = i % cols, row = Math.floor(i/cols);
       const cx = colW*col + colW/2;
-      const cy = busY + 90 + row*rowH;
+      const cy = busY + 96 + row*rowH;
       const tState = STATE.topics[t.id];
-      const color = tState.completed ? "#34D399" : (tState.started ? "#E0A93D" : "#35496B");
+      const color = tState.completed ? "#34D399" : (tState.started ? "#E7B34A" : "#33465F");
+      const active = tState.started || tState.completed;
 
-      el("line", { x1:cx, y1:busY, x2:cx, y2:cy-22, stroke:color, "stroke-width": tState.started||tState.completed?3:2 });
+      el("line", { x1:cx, y1:busY, x2:cx, y2:cy-26, stroke:color, "stroke-width": active?3:1.5,
+        class: active ? "energized-flow" : "",
+        style: active ? `filter:drop-shadow(0 0 5px ${color})` : "" });
 
       const g = el("g", { class:"node-btn", tabindex:"0", role:"button", "aria-label":t.title });
       if (tState.completed) g.classList.add("node-energized");
       drawNodeSymbol(g, t.symbol, cx, cy, color);
       t.navLabel.split("\n").forEach((line, li) => {
-        el("text", { x:cx, y:cy+44+li*13, class:"node-label" }, g).textContent = line;
+        el("text", { x:cx, y:cy+42+li*14, class:"node-label" }, g).textContent = line;
       });
       const totalQuizzes = quizStepsOf(t).length;
-      const statusText = tState.completed ? `✓ complete (${tState.score}/${totalQuizzes})` : (tState.started ? "in progress" : "not started");
-      el("text", { x:cx, y:cy+44+t.navLabel.split("\n").length*13+2, class:"node-sub" }, g).textContent = statusText;
+      const labelLines = t.navLabel.split("\n").length;
+      const pillY = cy + 42 + labelLines*14 + 10;
+      const statusText = tState.completed ? `COMPLETE ${tState.score}/${totalQuizzes}` : (tState.started ? "IN PROGRESS" : "NOT STARTED");
+      const pillW = statusText.length * 5.6 + 16;
+      el("rect", { x:cx-pillW/2, y:pillY-11, width:pillW, height:18, rx:9, fill:`${color}22`, stroke:color, "stroke-width":1 }, g);
+      el("text", { x:cx, y:pillY+2, class:"node-pill-text", fill:color }, g).textContent = statusText;
 
       g.style.cursor = "pointer";
       g.addEventListener("click", () => openTopic(t.id));
@@ -153,8 +161,8 @@ function renderMenu() {
     const legend = document.createElement("div");
     legend.className = "legend";
     legend.innerHTML = `
-      <span><span class="swatch" style="background:#35496B"></span> Not started</span>
-      <span><span class="swatch" style="background:#E0A93D"></span> In progress</span>
+      <span><span class="swatch" style="background:#33465F"></span> Not started</span>
+      <span><span class="swatch" style="background:#E7B34A"></span> In progress</span>
       <span><span class="swatch" style="background:#34D399"></span> Completed</span>`;
     root.appendChild(legend);
   });
